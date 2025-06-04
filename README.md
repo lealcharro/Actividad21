@@ -131,6 +131,47 @@ class CompositeModule:
 
 * **Tarea**: Describe cómo `CompositeModule` agrupa múltiples bloques en un solo JSON válido para Terraform.
 
+___
+
+**Solución:**
+
+El patrón Composite permite agrupar múltiples bloques de recursos en un solo módulo, facilitando la organización y reutilización de configuraciones. En el método `export`, se fusionan los recursos de todos los hijos en un único diccionario, asegurando que la estructura final sea compatible con Terraform.
+
+Ejemplo Pŕactico:
+```python
+composite = CompositeModule()
+
+# Recurso 1: VM
+composite.add({
+    "resource": [{"aws_instance": {"web": {"ami": "ami-123", "instance_type": "t2.micro"}}}]
+})
+
+# Recurso 2: Base de datos
+composite.add({
+    "resource": [{"aws_db_instance": {"main": {"engine": "mysql", "instance_class": "db.t3.micro"}}}]
+})
+```             
+
+Salida(JSON unificada):
+```json
+{
+  "resource": [
+    {"aws_instance": {"web": {"ami": "ami-123", "instance_type": "t2.micro"}}},
+    {"aws_db_instance": {"main": {"engine": "mysql", "instance_class": "db.t3.micro"}}}
+  ]
+}
+``` 
+
+Ventajas:
+- **Modularidad**: Cada recurso se puede definir por separado.
+- **Reutilización**: Los recursos se pueden combinar en diferentes configuraciones.
+- **Validez JSON**: La salida es directamente compatible con Terraform JSON.
+- **Escalabilidad**: Permite agregar tantos recursos como sea necesario.
+
+<img src="./img/Editor _ Mermaid Chart-2025-06-04-172014.png" alt="Diagrama Composite" width="50%">
+
+___
+
 #### 5. Builder
 
 ```python
