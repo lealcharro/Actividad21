@@ -131,44 +131,42 @@ class CompositeModule:
 
 * **Tarea**: Describe cómo `CompositeModule` agrupa múltiples bloques en un solo JSON válido para Terraform.
 
-___
+    **Solución:**
 
-**Solución:**
+    El patrón Composite permite agrupar múltiples bloques de recursos en un solo módulo, facilitando la organización y reutilización de configuraciones. En el método `export`, se fusionan los recursos de todos los hijos en un único diccionario, asegurando que la estructura final sea compatible con Terraform.
 
-El patrón Composite permite agrupar múltiples bloques de recursos en un solo módulo, facilitando la organización y reutilización de configuraciones. En el método `export`, se fusionan los recursos de todos los hijos en un único diccionario, asegurando que la estructura final sea compatible con Terraform.
+    Ejemplo Pŕactico:
+    ```python
+    composite = CompositeModule()
 
-Ejemplo Pŕactico:
-```python
-composite = CompositeModule()
+    # Recurso 1: VM
+    composite.add({
+        "resource": [{"aws_instance": {"web": {"ami": "ami-123", "instance_type": "t2.micro"}}}]
+    })
 
-# Recurso 1: VM
-composite.add({
-    "resource": [{"aws_instance": {"web": {"ami": "ami-123", "instance_type": "t2.micro"}}}]
-})
+    # Recurso 2: Base de datos
+    composite.add({
+        "resource": [{"aws_db_instance": {"main": {"engine": "mysql", "instance_class": "db.t3.micro"}}}]
+    })
+    ```             
 
-# Recurso 2: Base de datos
-composite.add({
-    "resource": [{"aws_db_instance": {"main": {"engine": "mysql", "instance_class": "db.t3.micro"}}}]
-})
-```             
+    Salida(JSON unificada):
+    ```json
+    {
+    "resource": [
+        {"aws_instance": {"web": {"ami": "ami-123", "instance_type": "t2.micro"}}},
+        {"aws_db_instance": {"main": {"engine": "mysql", "instance_class": "db.t3.micro"}}}
+    ]
+    }
+    ``` 
 
-Salida(JSON unificada):
-```json
-{
-  "resource": [
-    {"aws_instance": {"web": {"ami": "ami-123", "instance_type": "t2.micro"}}},
-    {"aws_db_instance": {"main": {"engine": "mysql", "instance_class": "db.t3.micro"}}}
-  ]
-}
-``` 
+    Ventajas:
+    - **Modularidad**: Cada recurso se puede definir por separado.
+    - **Reutilización**: Los recursos se pueden combinar en diferentes configuraciones.
+    - **Validez JSON**: La salida es directamente compatible con Terraform JSON.
+    - **Escalabilidad**: Permite agregar tantos recursos como sea necesario.
 
-Ventajas:
-- **Modularidad**: Cada recurso se puede definir por separado.
-- **Reutilización**: Los recursos se pueden combinar en diferentes configuraciones.
-- **Validez JSON**: La salida es directamente compatible con Terraform JSON.
-- **Escalabilidad**: Permite agregar tantos recursos como sea necesario.
-
-<img src="./img/Editor _ Mermaid Chart-2025-06-04-172014.png" alt="Diagrama Composite" width="50%">
+    <img src="./img/Editor _ Mermaid Chart-2025-06-04-172014.png" alt="Diagrama Composite" width="50%">
 
 ___
 
@@ -203,8 +201,62 @@ class InfrastructureBuilder:
 
 * **Tarea**: Explica cómo `InfrastructureBuilder` orquesta Factory -> Prototype -> Composite y genera el archivo JSON final.
 
-> **Entregable fase 1**: Documentocon fragmentos de código destacados, explicación de cada patrón y un diagrama UML simplificado.
+    **Solución:**
 
+    El patrón Builder (`InfrastructureBuilder`) actúa como director que orquesta los otros patrones de diseño para construir configuraciones de infraestructura complejas de manera estructurada.
+
+    **1. Factory -> Prototype (Creación del template base):**
+    ```python
+    # En build_null_fleet()
+    base_proto = ResourcePrototype(
+        NullResourceFactory.create("placeholder")  # Factory crea el recurso base
+    )
+    ```
+    - `NullResourceFactory.create()` genera un template de `null_resource` con triggers únicos (UUID + timestamp)
+    - Este template se envuelve en un `ResourcePrototype` para permitir clonación eficiente
+
+    **2. Prototype -> Composite (Clonación y agregación):**
+    ```python
+    for i in range(count):
+        def mutator(d: Dict[str, Any], idx=i) -> None:
+            # Renombra "placeholder" a "placeholder_i" 
+            # Añade trigger de índice personalizado
+            
+        clone = base_proto.clone(mutator).data  # Clona con mutación
+        self._module.add(clone)                 # Agrega al composite
+    ```
+    - Cada iteración clona el prototipo usando `clone(mutator)`
+    - El `mutator` personaliza cada clon: renombra el recurso e inyecta triggers específicos
+    - Cada clon independiente se agrega al `CompositeModule`
+
+    **3. Composite -> JSON final (Exportación unificada):**
+    ```python
+    def export(self, path: str) -> None:
+        data = self._module.export()  # Fusiona todos los recursos
+        with open(path, "w") as f:
+            json.dump(data, f, indent=4)
+    ```
+    - `CompositeModule.export()` fusiona todos los recursos en una estructura única
+    - La estructura final es compatible con Terraform JSON: `{"resource": [...]}`
+
+    **Ventajas de esta orquestación:**
+    - **Eficiencia**: Un solo template se reutiliza para múltiples recursos
+    - **Flexibilidad**: Los mutators permiten personalización sin modificar el prototipo
+    - **Escalabilidad**: Puede generar miles de recursos con mínimo código
+    - **Separación de responsabilidades**: Cada patrón tiene un propósito específico
+    - **Idempotencia**: Los triggers garantizan recreación controlada en Terraform
+
+    Esta arquitectura permite generar configuraciones Terraform complejas de forma automatizada, manteniendo la validez del JSON y la escalabilidad del sistema.
+
+    **Diagrama UML de secuencia - Orquestación de patrones:**
+
+    <img src="./img/Editor _ Mermaid Chart-2025-06-04-185330.png" alt="Diagrama UML de secuencia" width="75%">
+
+___
+
+> **Entregable fase 1**: Documento con fragmentos de código destacados, explicación de cada patrón y un diagrama UML simplificado.
+
+___
 
 #### Fase 2: Ejercicios prácticos 
 
